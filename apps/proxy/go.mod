@@ -7,7 +7,10 @@ require (
 	waguri-centralized-control/packages/go-utils/telemetry v0.0.0
 )
 
-require gopkg.in/yaml.v3 v3.0.1 // indirect
+require (
+	github.com/gorilla/websocket v1.5.3 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
+)
 
 replace waguri-centralized-control/packages/go-utils/config => ../../packages/go-utils/config
 

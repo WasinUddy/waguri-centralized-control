@@ -4,9 +4,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
+
+	"github.com/gorilla/websocket"
 )
 
 // serveMenu handles the menu page requests
@@ -56,13 +60,135 @@ func (s *Server) serveServicesAPI(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// isWebSocketRequest checks if the request is a WebSocket upgrade request
+func isWebSocketRequest(r *http.Request) bool {
+	return strings.ToLower(r.Header.Get("Connection")) == "upgrade" &&
+		strings.ToLower(r.Header.Get("Upgrade")) == "websocket"
+}
+
+// handleWebSocketProxy handles WebSocket connection proxying
+func (s *Server) handleWebSocketProxy(w http.ResponseWriter, r *http.Request, targetURL string) {
+	s.logger.Info(fmt.Sprintf("Handling WebSocket proxy - source_host=%s target_url=%s path=%s remote_addr=%s",
+		r.Host, targetURL, r.URL.Path, r.RemoteAddr))
+
+	// Parse target URL
+	target, err := url.Parse(targetURL)
+	if err != nil {
+		s.logger.Error("Invalid target URL for WebSocket proxy:", err)
+		http.Error(w, "Invalid target URL", http.StatusInternalServerError)
+		return
+	}
+
+	// Create WebSocket URL (convert http/https to ws/wss)
+	wsScheme := "ws"
+	if target.Scheme == "https" {
+		wsScheme = "wss"
+	}
+	wsURL := fmt.Sprintf("%s://%s%s", wsScheme, target.Host, r.URL.Path)
+	if r.URL.RawQuery != "" {
+		wsURL += "?" + r.URL.RawQuery
+	}
+
+	// Upgrade the connection to WebSocket
+	upgrader := websocket.Upgrader{
+		CheckOrigin: func(r *http.Request) bool {
+			return true // Allow all origins for proxy
+		},
+	}
+
+	clientConn, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		s.logger.Error("Failed to upgrade client connection to WebSocket:", err)
+		return
+	}
+	defer clientConn.Close()
+
+	// Forward headers to the target
+	headers := http.Header{}
+	for key, values := range r.Header {
+		// Skip connection-related headers that shouldn't be forwarded
+		if strings.ToLower(key) == "connection" ||
+			strings.ToLower(key) == "upgrade" ||
+			strings.ToLower(key) == "sec-websocket-key" ||
+			strings.ToLower(key) == "sec-websocket-version" ||
+			strings.ToLower(key) == "sec-websocket-extensions" {
+			continue
+		}
+		headers[key] = values
+	}
+
+	// Connect to the target WebSocket server
+	targetConn, _, err := websocket.DefaultDialer.Dial(wsURL, headers)
+	if err != nil {
+		s.logger.Error(fmt.Sprintf("Failed to connect to target WebSocket - url=%s error=%v", wsURL, err))
+		clientConn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseInternalServerErr, "Failed to connect to target"))
+		return
+	}
+	defer targetConn.Close()
+
+	s.logger.Info(fmt.Sprintf("WebSocket proxy connection established - client=%s target=%s", r.RemoteAddr, wsURL))
+
+	// Start bidirectional message forwarding
+	errChan := make(chan error, 2)
+
+	// Forward messages from client to target
+	go func() {
+		for {
+			messageType, message, err := clientConn.ReadMessage()
+			if err != nil {
+				if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+					s.logger.Error("Client WebSocket read error:", err)
+				}
+				errChan <- err
+				return
+			}
+
+			err = targetConn.WriteMessage(messageType, message)
+			if err != nil {
+				s.logger.Error("Target WebSocket write error:", err)
+				errChan <- err
+				return
+			}
+
+			s.logger.Info(fmt.Sprintf("WebSocket message forwarded client->target - type=%d size=%d", messageType, len(message)))
+		}
+	}()
+
+	// Forward messages from target to client
+	go func() {
+		for {
+			messageType, message, err := targetConn.ReadMessage()
+			if err != nil {
+				if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+					s.logger.Error("Target WebSocket read error:", err)
+				}
+				errChan <- err
+				return
+			}
+
+			err = clientConn.WriteMessage(messageType, message)
+			if err != nil {
+				s.logger.Error("Client WebSocket write error:", err)
+				errChan <- err
+				return
+			}
+
+			s.logger.Info(fmt.Sprintf("WebSocket message forwarded target->client - type=%d size=%d", messageType, len(message)))
+		}
+	}()
+
+	// Wait for an error or connection close
+	err = <-errChan
+	s.logger.Info(fmt.Sprintf("WebSocket proxy connection closed - client=%s target=%s error=%v", r.RemoteAddr, wsURL, err))
+}
+
 // handleRequest is the main request handler that routes requests to appropriate handlers
 func (s *Server) handleRequest(w http.ResponseWriter, r *http.Request) {
 	startTime := time.Now()
 
 	// Log all incoming requests
-	s.logger.Info(fmt.Sprintf("Incoming request - method=%s host=%s path=%s remote_addr=%s user_agent=%s content_length=%d",
-		r.Method, r.Host, r.URL.Path, r.RemoteAddr, r.Header.Get("User-Agent"), r.ContentLength))
+	s.logger.Info(fmt.Sprintf("Incoming request - method=%s host=%s path=%s remote_addr=%s user_agent=%s content_length=%d websocket=%t",
+		r.Method, r.Host, r.URL.Path, r.RemoteAddr, r.Header.Get("User-Agent"), r.ContentLength, isWebSocketRequest(r)))
 
 	// Check if this is the menu host OR if accessing via IP (no Host header or IP format)
 	if r.Host == s.cfg.Menu || isDirectIPAccess(r.Host) {
@@ -87,7 +213,7 @@ func (s *Server) handleRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Log proxy forward details
+	// Find the target URL for this host
 	var targetURL string
 	for _, route := range s.cfg.Routes {
 		if route.Host == r.Host {
@@ -96,7 +222,16 @@ func (s *Server) handleRequest(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	s.logger.Info(fmt.Sprintf("Proxying request to upstream - method=%s source_host=%s target_url=%s path=%s remote_addr=%s query=%s",
+	// Check if this is a WebSocket request
+	if isWebSocketRequest(r) {
+		s.handleWebSocketProxy(w, r, targetURL)
+		duration := time.Since(startTime)
+		s.logger.Info(fmt.Sprintf("WebSocket proxy completed - duration_ms=%d host=%s path=%s",
+			duration.Milliseconds(), r.Host, r.URL.Path))
+		return
+	}
+
+	s.logger.Info(fmt.Sprintf("Proxying HTTP request to upstream - method=%s source_host=%s target_url=%s path=%s remote_addr=%s query=%s",
 		r.Method, r.Host, targetURL, r.URL.Path, r.RemoteAddr, r.URL.RawQuery))
 
 	// Create a custom response writer to capture status code
@@ -105,7 +240,7 @@ func (s *Server) handleRequest(w http.ResponseWriter, r *http.Request) {
 	proxy.ServeHTTP(wrappedWriter, r)
 
 	duration := time.Since(startTime)
-	s.logger.Info(fmt.Sprintf("Proxy request completed - method=%s source_host=%s target_url=%s path=%s status_code=%d duration_ms=%d remote_addr=%s",
+	s.logger.Info(fmt.Sprintf("HTTP proxy request completed - method=%s source_host=%s target_url=%s path=%s status_code=%d duration_ms=%d remote_addr=%s",
 		r.Method, r.Host, targetURL, r.URL.Path, wrappedWriter.statusCode, duration.Milliseconds(), r.RemoteAddr))
 }
 
