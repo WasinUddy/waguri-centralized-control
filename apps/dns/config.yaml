@@ -1,0 +1,18 @@
+# DNS server listen address
+listen: ":5454"
+
+# Telemetry / logging configuration
+telemetry:
+  # "stdout" prints logs to console
+  # or you can set a file path like "logs/dns.log"
+  output: "stdout"
+  # Custom log header - will become [waguri][dns]
+  header: "dns"
+
+# Domain records for your internal DNS
+domains:
+  waguri.san: "192.168.1.10"
+  nas.happy: "192.168.1.10"
+  proxy.nas.happy: "192.168.1.10"
+  app1.nas.happy: "192.168.1.11"
+  app2.nas.happy: "192.168.1.12"
