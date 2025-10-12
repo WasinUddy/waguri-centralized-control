@@ -7,15 +7,14 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
-
 	"waguri-centralized-control/dns/internal"
-	"waguri-centralized-control/packages/go-utils/config"
+
 	"waguri-centralized-control/packages/go-utils/telemetry"
 )
 
 func main() {
-	// Load configuration
-	cfg, err := config.Load("config.yaml")
+	// Load DNS-specific configuration
+	cfg, err := internal.LoadDNSConfig("../../configs/dns.yaml")
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
 	}

@@ -5,21 +5,20 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
-	"waguri-centralized-control/packages/go-utils/config"
 	"waguri-centralized-control/packages/go-utils/telemetry"
 
 	dnslib "github.com/miekg/dns"
 )
 
 type Server struct {
-	cfg       *config.Config
+	cfg       *DNSConfig
 	logger    *telemetry.Logger
 	dnsServer *dnslib.Server
 	// Compiled regex patterns for wildcard domains
 	wildcardPatterns map[*regexp.Regexp]string
 }
 
-func NewServer(cfg *config.Config, logger *telemetry.Logger) *Server {
+func NewServer(cfg *DNSConfig, logger *telemetry.Logger) *Server {
 	server := &Server{
 		cfg:              cfg,
 		logger:           logger,

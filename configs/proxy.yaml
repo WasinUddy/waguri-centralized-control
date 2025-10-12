@@ -1,0 +1,19 @@
+# Proxy server configuration
+listen: ":80"
+
+# Telemetry / logging configuration
+telemetry:
+  output: "stdout"
+  header: "proxy"
+
+# Proxy routing rules
+routes:
+  - host: "api.waguri.san"
+    target: "http://192.168.1.101:3000"
+
+  - host: "app1.nas.happy"
+    target: "http://192.168.1.11:8080"
+
+  - host: "app2.nas.happy"
+    target: "http://192.168.1.12:9000"
+
