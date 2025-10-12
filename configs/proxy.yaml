@@ -6,14 +6,27 @@ telemetry:
   output: "stdout"
   header: "proxy"
 
+menu: "menu.waguri.san"
+
 # Proxy routing rules
 routes:
   - host: "api.waguri.san"
-    target: "http://192.168.1.101:3000"
+    target: "http://192.168.1.100:3001"
+    name: "API Gateway"
+    description: "Main API endpoint for all backend services"
+    icon: "server"
+    category: "Backend Services"
 
   - host: "app1.nas.happy"
-    target: "http://192.168.1.11:8080"
+    target: "http://192.168.1.101:8080"
+    name: "Application 1"
+    description: "Primary application service running on NAS"
+    icon: "monitor"
+    category: "Applications"
 
   - host: "app2.nas.happy"
-    target: "http://192.168.1.12:9000"
-
+    target: "http://192.168.1.101:8081"
+    name: "Application 2"
+    description: "Secondary application service"
+    icon: "database"
+    category: "Applications"

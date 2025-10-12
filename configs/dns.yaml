@@ -1,7 +1,27 @@
-listen: "0.0.0.0:53"
+# DNS server configuration
+listen: ":53"
+
+# Telemetry / logging configuration
 telemetry:
   output: "stdout"
   header: "dns"
+
+# DNS domain mappings
 domains:
-  "waguri.san": "192.168.1.100"
-  "*.waguri.san": "192.168.1.100"
+  - name: "waguri.san"
+    ip: "192.168.1.100"
+
+  - name: "menu.waguri.san"
+    ip: "192.168.1.100"
+
+  - name: "api.waguri.san"
+    ip: "192.168.1.100"
+
+  - name: "nas.happy"
+    ip: "192.168.1.101"
+
+  - name: "app1.nas.happy"
+    ip: "192.168.1.101"
+
+  - name: "app2.nas.happy"
+    ip: "192.168.1.101"

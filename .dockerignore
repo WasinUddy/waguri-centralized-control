@@ -1,0 +1,14 @@
+.git
+.gitignore
+README.md
+.env
+.env.local
+.env.production.local
+.env.staging.local
+Dockerfile
+.dockerignore
+*.log
+.turbo
+.vercel
+dist
+vendor/

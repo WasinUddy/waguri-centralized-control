@@ -1,0 +1,16 @@
+{
+  "name": "proxy",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "go build -o dist/proxy main.go",
+    "dev": "go run main.go",
+    "lint": "go vet ./...",
+    "check-types": "go mod verify && go mod tidy",
+    "docker:build": "docker build -t waguri-proxy:latest .",
+    "docker:run": "docker run -p 8080:8080 waguri-proxy:latest"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}
+

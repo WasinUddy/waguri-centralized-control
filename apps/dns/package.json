@@ -1,0 +1,16 @@
+{
+  "name": "dns",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "go build -o dist/dns main.go",
+    "dev": "go run main.go",
+    "lint": "go vet ./...",
+    "check-types": "go mod verify && go mod tidy",
+    "docker:build": "docker build -t waguri-dns:latest .",
+    "docker:run": "docker run -p 53:53/udp waguri-dns:latest"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}
+
