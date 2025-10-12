@@ -13,18 +13,26 @@ import (
 )
 
 func main() {
+	// Get config URL from environment variable - mandatory
+	configURL := os.Getenv("CONFIG_URL")
+	if configURL == "" {
+		log.Fatal("CONFIG_URL environment variable is required")
+	}
+
+	log.Println("Loading DNS config from:", configURL)
+
 	// Load DNS-specific configuration
-	cfg, err := internal.LoadDNSConfig("../../configs/dns.yaml")
+	cfg, err := internal.LoadDNSConfig(configURL)
 	if err != nil {
-		log.Fatalf("Failed to load config: %v", err)
+		log.Fatalf("Failed to load DNS config: %v", err)
 	}
 
 	// Initialize logger with telemetry output setting and header
 	logger := telemetry.NewLogger(cfg.Telemetry.Output, cfg.Telemetry.Header)
 
-	// Use the telemetry logger
+	// Log startup information
 	logger.Info("DNS server starting on", cfg.Listen)
-	logger.Info("Configured domains:", cfg.Domains)
+	logger.Info("Configured domains:", len(cfg.Domains))
 
 	// Create DNS server
 	server := internal.NewServer(cfg, logger)
