@@ -2,6 +2,7 @@ package internal
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -10,12 +11,8 @@ import (
 
 // serveMenu handles the menu page requests
 func (s *Server) serveMenu(w http.ResponseWriter, r *http.Request) {
-	s.logger.Info("Serving menu request",
-		"method", r.Method,
-		"host", r.Host,
-		"path", r.URL.Path,
-		"remote_addr", r.RemoteAddr,
-		"user_agent", r.Header.Get("User-Agent"))
+	s.logger.Info(fmt.Sprintf("Serving menu request - method=%s host=%s path=%s remote_addr=%s user_agent=%s",
+		r.Method, r.Host, r.URL.Path, r.RemoteAddr, r.Header.Get("User-Agent")))
 
 	// Handle API endpoint for services data
 	if r.URL.Path == "/api/services" {
@@ -26,7 +23,7 @@ func (s *Server) serveMenu(w http.ResponseWriter, r *http.Request) {
 	// Serve the HTML menu
 	menuPath := filepath.Join(".", "menu.html")
 	if _, err := os.Stat(menuPath); os.IsNotExist(err) {
-		s.logger.Error("Menu file not found", "path", menuPath, "error", err)
+		s.logger.Error(fmt.Sprintf("Menu file not found - path=%s error=%v", menuPath, err))
 		http.Error(w, "Menu file not found", http.StatusNotFound)
 		return
 	}
@@ -34,7 +31,7 @@ func (s *Server) serveMenu(w http.ResponseWriter, r *http.Request) {
 	// Read the HTML content
 	tmplContent, err := os.ReadFile(menuPath)
 	if err != nil {
-		s.logger.Error("Error reading menu file", "path", menuPath, "error", err)
+		s.logger.Error(fmt.Sprintf("Error reading menu file - path=%s error=%v", menuPath, err))
 		http.Error(w, "Error reading menu file", http.StatusInternalServerError)
 		return
 	}
@@ -48,11 +45,8 @@ func (s *Server) serveMenu(w http.ResponseWriter, r *http.Request) {
 
 // serveServicesAPI handles the API endpoint for services data
 func (s *Server) serveServicesAPI(w http.ResponseWriter, r *http.Request) {
-	s.logger.Info("Serving services API request",
-		"method", r.Method,
-		"host", r.Host,
-		"path", r.URL.Path,
-		"remote_addr", r.RemoteAddr)
+	s.logger.Info(fmt.Sprintf("Serving services API request - method=%s host=%s path=%s remote_addr=%s",
+		r.Method, r.Host, r.URL.Path, r.RemoteAddr))
 
 	services := s.generateServicesData()
 	w.Header().Set("Content-Type", "application/json")
@@ -67,41 +61,29 @@ func (s *Server) handleRequest(w http.ResponseWriter, r *http.Request) {
 	startTime := time.Now()
 
 	// Log all incoming requests
-	s.logger.Info("Incoming request",
-		"method", r.Method,
-		"host", r.Host,
-		"path", r.URL.Path,
-		"remote_addr", r.RemoteAddr,
-		"user_agent", r.Header.Get("User-Agent"),
-		"content_length", r.ContentLength)
+	s.logger.Info(fmt.Sprintf("Incoming request - method=%s host=%s path=%s remote_addr=%s user_agent=%s content_length=%d",
+		r.Method, r.Host, r.URL.Path, r.RemoteAddr, r.Header.Get("User-Agent"), r.ContentLength))
 
 	// Check if this is the menu host OR if accessing via IP (no Host header or IP format)
 	if r.Host == s.cfg.Menu || isDirectIPAccess(r.Host) {
-		s.logger.Info("Routing to menu handler",
-			"host", r.Host,
-			"is_menu_host", r.Host == s.cfg.Menu,
-			"is_direct_ip", isDirectIPAccess(r.Host))
+		s.logger.Info(fmt.Sprintf("Routing to menu handler - host=%s is_menu_host=%t is_direct_ip=%t",
+			r.Host, r.Host == s.cfg.Menu, isDirectIPAccess(r.Host)))
 		s.serveMenu(w, r)
 		duration := time.Since(startTime)
-		s.logger.Info("Menu request completed",
-			"duration_ms", duration.Milliseconds(),
-			"host", r.Host,
-			"path", r.URL.Path)
+		s.logger.Info(fmt.Sprintf("Menu request completed - duration_ms=%d host=%s path=%s",
+			duration.Milliseconds(), r.Host, r.URL.Path))
 		return
 	}
 
 	// Check for proxy routes
 	proxy, ok := s.proxyMap[r.Host]
 	if !ok {
-		s.logger.Info("No proxy route found, falling back to menu",
-			"host", r.Host,
-			"available_routes", len(s.proxyMap))
+		s.logger.Info(fmt.Sprintf("No proxy route found, falling back to menu - host=%s available_routes=%d",
+			r.Host, len(s.proxyMap)))
 		s.serveMenu(w, r)
 		duration := time.Since(startTime)
-		s.logger.Info("Fallback to menu completed",
-			"duration_ms", duration.Milliseconds(),
-			"host", r.Host,
-			"path", r.URL.Path)
+		s.logger.Info(fmt.Sprintf("Fallback to menu completed - duration_ms=%d host=%s path=%s",
+			duration.Milliseconds(), r.Host, r.URL.Path))
 		return
 	}
 
@@ -114,13 +96,8 @@ func (s *Server) handleRequest(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	s.logger.Info("Proxying request to upstream",
-		"method", r.Method,
-		"source_host", r.Host,
-		"target_url", targetURL,
-		"path", r.URL.Path,
-		"remote_addr", r.RemoteAddr,
-		"query", r.URL.RawQuery)
+	s.logger.Info(fmt.Sprintf("Proxying request to upstream - method=%s source_host=%s target_url=%s path=%s remote_addr=%s query=%s",
+		r.Method, r.Host, targetURL, r.URL.Path, r.RemoteAddr, r.URL.RawQuery))
 
 	// Create a custom response writer to capture status code
 	wrappedWriter := &responseWriter{ResponseWriter: w, statusCode: http.StatusOK}
@@ -128,14 +105,8 @@ func (s *Server) handleRequest(w http.ResponseWriter, r *http.Request) {
 	proxy.ServeHTTP(wrappedWriter, r)
 
 	duration := time.Since(startTime)
-	s.logger.Info("Proxy request completed",
-		"method", r.Method,
-		"source_host", r.Host,
-		"target_url", targetURL,
-		"path", r.URL.Path,
-		"status_code", wrappedWriter.statusCode,
-		"duration_ms", duration.Milliseconds(),
-		"remote_addr", r.RemoteAddr)
+	s.logger.Info(fmt.Sprintf("Proxy request completed - method=%s source_host=%s target_url=%s path=%s status_code=%d duration_ms=%d remote_addr=%s",
+		r.Method, r.Host, targetURL, r.URL.Path, wrappedWriter.statusCode, duration.Milliseconds(), r.RemoteAddr))
 }
 
 // responseWriter wraps http.ResponseWriter to capture status code
