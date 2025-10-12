@@ -3,6 +3,7 @@ package internal
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strings"
 	"waguri-centralized-control/packages/go-utils/config"
 	"waguri-centralized-control/packages/go-utils/telemetry"
@@ -14,13 +15,58 @@ type Server struct {
 	cfg       *config.Config
 	logger    *telemetry.Logger
 	dnsServer *dnslib.Server
+	// Compiled regex patterns for wildcard domains
+	wildcardPatterns map[*regexp.Regexp]string
 }
 
 func NewServer(cfg *config.Config, logger *telemetry.Logger) *Server {
-	return &Server{
-		cfg:    cfg,
-		logger: logger,
+	server := &Server{
+		cfg:              cfg,
+		logger:           logger,
+		wildcardPatterns: make(map[*regexp.Regexp]string),
 	}
+
+	// Compile wildcard patterns
+	server.compileWildcardPatterns()
+
+	return server
+}
+
+// compileWildcardPatterns converts wildcard domain patterns to regex
+func (s *Server) compileWildcardPatterns() {
+	for domain, ip := range s.cfg.Domains {
+		if strings.Contains(domain, "*") {
+			// Convert wildcard pattern to regex
+			// *.waguri.san becomes ^[^.]+\.waguri\.san$
+			regexPattern := strings.ReplaceAll(domain, ".", "\\.")
+			regexPattern = strings.ReplaceAll(regexPattern, "*", "[^.]+")
+			regexPattern = "^" + regexPattern + "$"
+
+			if compiled, err := regexp.Compile(regexPattern); err == nil {
+				s.wildcardPatterns[compiled] = ip
+				s.logger.Info("Compiled wildcard pattern:", domain, "->", regexPattern, "resolves to", ip)
+			} else {
+				s.logger.Error("Failed to compile wildcard pattern for", domain, err)
+			}
+		}
+	}
+}
+
+// findDomainMatch checks for exact match first, then wildcard patterns
+func (s *Server) findDomainMatch(domain string) (string, bool) {
+	// First try exact match
+	if ip, ok := s.cfg.Domains[domain]; ok {
+		return ip, true
+	}
+
+	// Then try wildcard patterns
+	for pattern, ip := range s.wildcardPatterns {
+		if pattern.MatchString(domain) {
+			return ip, true
+		}
+	}
+
+	return "", false
 }
 
 func (s *Server) handleDNS(w dnslib.ResponseWriter, r *dnslib.Msg) {
@@ -37,8 +83,8 @@ func (s *Server) handleDNS(w dnslib.ResponseWriter, r *dnslib.Msg) {
 
 		name := strings.ToLower(strings.TrimSuffix(q.Name, "."))
 
-		// Lookup in config
-		ip, ok := s.cfg.Domains[name]
+		// Lookup using both exact and wildcard matching
+		ip, ok := s.findDomainMatch(name)
 		if ok {
 			rr, err := dnslib.NewRR(fmt.Sprintf("%s A %s", q.Name, ip))
 			if err != nil {
