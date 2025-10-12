@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Waguri Control Panel</title>
+    <title>Kaoruko Waguri NAS Menu</title>
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
     <style>
         * {
@@ -14,9 +14,10 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-            background: #f8fafc;
-            color: #1e293b;
+            background: linear-gradient(135deg, #f8f1f1 0%, #f0e6e6 50%, #ede1e1 100%);
+            color: #4a3838;
             line-height: 1.6;
+            min-height: 100vh;
         }
 
         .container {
@@ -33,12 +34,13 @@
         .header h1 {
             font-size: 2rem;
             font-weight: 700;
-            color: #0f172a;
+            color: #8b4a6b;
             margin-bottom: 0.5rem;
+            text-shadow: 0 2px 4px rgba(139, 74, 107, 0.1);
         }
 
         .header p {
-            color: #64748b;
+            color: #6b5555;
             font-size: 1rem;
         }
 
@@ -49,10 +51,22 @@
         .category-title {
             font-size: 1.125rem;
             font-weight: 600;
-            color: #374151;
+            color: #8b4a6b;
             margin-bottom: 1rem;
             padding-bottom: 0.5rem;
-            border-bottom: 2px solid #e5e7eb;
+            border-bottom: 2px solid #d4a5a5;
+            position: relative;
+        }
+
+        .category-title::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            width: 40px;
+            height: 2px;
+            background: linear-gradient(90deg, #c17a98, #d4a5a5);
+            border-radius: 1px;
         }
 
         .services-grid {
@@ -62,42 +76,64 @@
         }
 
         .service-card {
-            background: white;
-            border: 1px solid #e5e7eb;
-            border-radius: 0.75rem;
+            background: linear-gradient(145deg, #ffffff 0%, #faf8f8 100%);
+            border: 1px solid #e8d0d0;
+            border-radius: 1rem;
             padding: 1.25rem;
-            transition: all 0.2s ease;
+            transition: all 0.3s ease;
             text-decoration: none;
             color: inherit;
             display: flex;
             align-items: center;
             gap: 1rem;
-            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+            box-shadow: 0 2px 8px rgba(199, 122, 152, 0.08), 0 1px 3px rgba(139, 74, 107, 0.05);
             width: 100%;
             min-height: 80px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .service-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: linear-gradient(180deg, #c17a98, #d4a5a5);
+            opacity: 0;
+            transition: opacity 0.3s ease;
         }
 
         .service-card:hover {
-            border-color: #3b82f6;
-            box-shadow: 0 4px 12px 0 rgba(59, 130, 246, 0.15);
-            transform: translateY(-1px);
+            border-color: #c17a98;
+            box-shadow: 0 8px 25px rgba(199, 122, 152, 0.15), 0 4px 12px rgba(139, 74, 107, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .service-card:hover::before {
+            opacity: 1;
         }
 
         .service-icon {
             width: 48px;
             height: 48px;
-            background: #f1f5f9;
-            border-radius: 0.75rem;
+            background: linear-gradient(135deg, #f5eded, #f0e6e6);
+            border: 1px solid #e8d0d0;
+            border-radius: 0.875rem;
             display: flex;
             align-items: center;
             justify-content: center;
             flex-shrink: 0;
-            color: #475569;
+            color: #8b4a6b;
+            transition: all 0.3s ease;
         }
 
         .service-card:hover .service-icon {
-            background: #dbeafe;
-            color: #3b82f6;
+            background: linear-gradient(135deg, #f0e1e7, #e8d0d8);
+            color: #8b4a6b;
+            border-color: #d4a5a5;
+            transform: scale(1.05);
         }
 
         .service-content {
@@ -118,20 +154,55 @@
         .service-title {
             font-size: 1.1rem;
             font-weight: 600;
-            color: #1e293b;
+            color: #4a3838;
             line-height: 1.3;
         }
 
         .service-url {
             font-size: 0.8rem;
-            color: #64748b;
+            color: #7a6b8a;
             font-family: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, monospace;
             margin-top: 0.25rem;
+            background: linear-gradient(135deg, #ffffff 0%, #faf8fb 50%, #f5f3f8 100%);
+            padding: 0.375rem 0.75rem 0.375rem 0.75rem;
+            border-radius: 0.5rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            border: 1px solid rgba(139, 74, 107, 0.08);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .service-url:hover {
+            background: linear-gradient(135deg, #faf8fb 0%, #f5f3f8 50%, #f0ecf5 100%);
+            border-color: rgba(139, 74, 107, 0.15);
+            color: #6b5a7a;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(139, 74, 107, 0.1);
+        }
+
+        .service-url:active {
+            transform: translateY(0);
+            box-shadow: 0 1px 4px rgba(139, 74, 107, 0.15);
+        }
+
+        .service-url .copy-icon {
+            opacity: 0;
+            transition: opacity 0.2s ease;
+            color: #8b4a6b;
+            flex-shrink: 0;
+        }
+
+        .service-url:hover .copy-icon {
+            opacity: 0.7;
         }
 
         .service-description {
             font-size: 0.9rem;
-            color: #64748b;
+            color: #6b5555;
             line-height: 1.4;
             display: flex;
             align-items: flex-start;
@@ -144,28 +215,50 @@
             align-items: center;
             gap: 0.5rem;
             font-size: 0.875rem;
-            color: #10b981;
+            color: #8b4a6b;
             margin-top: 1rem;
+            background: linear-gradient(135deg, #ffffff, #faf8f8);
+            padding: 0.75rem 1rem;
+            border-radius: 0.75rem;
+            border: 1px solid #e8d0d0;
+            box-shadow: 0 2px 4px rgba(199, 122, 152, 0.08);
         }
 
         .status-dot {
-            width: 6px;
-            height: 6px;
-            background: #10b981;
+            width: 8px;
+            height: 8px;
+            background: linear-gradient(135deg, #c17a98, #d4a5a5);
             border-radius: 50%;
+            box-shadow: 0 0 8px rgba(199, 122, 152, 0.3);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                box-shadow: 0 0 8px rgba(199, 122, 152, 0.3);
+            }
+            50% {
+                box-shadow: 0 0 12px rgba(199, 122, 152, 0.6);
+            }
         }
 
         .loading {
             text-align: center;
             padding: 2rem;
-            color: #64748b;
+            color: #8b6b6b;
+            background: linear-gradient(135deg, #ffffff, #faf8f8);
+            border-radius: 1rem;
+            border: 1px solid #e8d0d0;
         }
 
         .empty-category {
             text-align: center;
             padding: 2rem;
-            color: #9ca3af;
+            color: #a08888;
             font-style: italic;
+            background: linear-gradient(135deg, #ffffff, #faf8f8);
+            border-radius: 1rem;
+            border: 1px solid #e8d0d0;
         }
 
         @media (max-width: 768px) {
@@ -192,22 +285,50 @@
                 height: 40px;
             }
         }
+
+        /* Scrollbar styling to match theme */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f0e6e6;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, #c17a98, #d4a5a5);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(180deg, #a86c85, #c17a98);
+        }
+
+        /* Toast notification for copy feedback */
+        .copy-toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: linear-gradient(135deg, #8b4a6b, #7a6b8a);
+            color: white;
+            padding: 0.75rem 1rem;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            box-shadow: 0 4px 12px rgba(139, 74, 107, 0.3);
+            z-index: 1000;
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+        }
+
+        .copy-toast.show {
+            transform: translateX(0);
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="header">
-            <h1>Waguri Control Panel</h1>
-            <p>Centralized access to all your applications and services</p>
-        </div>
-
         <div id="servicesContainer" class="loading">
             Loading services...
-        </div>
-
-        <div class="status-indicator">
-            <div class="status-dot"></div>
-            <span>System Active</span>
         </div>
     </div>
 
@@ -222,38 +343,6 @@
                 console.error('Failed to load services:', error);
                 // Fallback to hardcoded services if API fails
                 const fallbackServices = [
-                    {
-                        name: "Media Server",
-                        description: "Stream and manage your media collection",
-                        url: "http://app1.nas.happysas",
-                        icon: "play-circle",
-                        status: "active",
-                        category: "Media"
-                    },
-                    {
-                        name: "File Manager",
-                        description: "Browse and manage your files",
-                        url: "http://app2.nas.happy",
-                        icon: "folder",
-                        status: "active",
-                        category: "Storage"
-                    },
-                    {
-                        name: "File Manager 2",
-                        description: "Secondary file management system",
-                        url: "http://app2.nas.hsappy",
-                        icon: "folder",
-                        status: "active",
-                        category: "Storage"
-                    },
-                    {
-                        name: "API Gateway",
-                        description: "Main API endpoint for all backend services",
-                        url: "http://api.waguri.san",
-                        icon: "server",
-                        status: "active",
-                        category: "Backend"
-                    }
                 ];
                 renderServices(fallbackServices);
             }
@@ -323,7 +412,10 @@
                     <div class="service-content">
                         <div class="service-main">
                             <div class="service-title">${service.name}</div>
-                            <div class="service-url">${service.url}</div>
+                            <div class="service-url">
+                                <span class="url-text">${service.url}</span>
+
+                            </div>
                         </div>
                         <div class="service-description">${service.description || ''}</div>
                     </div>
@@ -336,6 +428,39 @@
 
         // Auto-refresh services every 30 seconds
         setInterval(loadServices, 30000);
+
+        // Copy to clipboard functionality
+        document.addEventListener('click', function(event) {
+            const urlElement = event.target.closest('.service-url');
+            if (urlElement) {
+                const url = urlElement.innerText;
+                navigator.clipboard.writeText(url).then(() => {
+                    showCopyToast(url);
+                }).catch(err => {
+                    console.error('Failed to copy text:', err);
+                });
+            }
+        });
+
+        function showCopyToast(url) {
+            const toast = document.createElement('div');
+            toast.className = 'copy-toast';
+            toast.innerText = `Copied to clipboard: ${url}`;
+            document.body.appendChild(toast);
+
+            // Show the toast
+            setTimeout(() => {
+                toast.classList.add('show');
+            }, 100);
+
+            // Hide and remove the toast after 2 seconds
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => {
+                    document.body.removeChild(toast);
+                }, 300);
+            }, 2000);
+        }
     </script>
 </body>
 </html>
