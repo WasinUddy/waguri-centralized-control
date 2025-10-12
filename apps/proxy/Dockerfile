@@ -33,8 +33,7 @@ COPY --from=builder /app/apps/proxy/menu.html .
 # Copy config file if it exists
 COPY --from=builder /app/configs/proxy.yaml ./configs/proxy.yaml
 
-# Expose proxy port
-EXPOSE 8080
+EXPOSE 80
 
 # Command to run
 CMD ["./proxy"]
