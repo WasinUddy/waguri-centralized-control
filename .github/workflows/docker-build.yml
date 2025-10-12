@@ -5,7 +5,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: wasinuddy/${{ github.repository }}
+  IMAGE_NAME: wasinuddy/waguri-centralized-control
 
 jobs:
   build-and-push:
