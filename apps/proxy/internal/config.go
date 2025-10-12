@@ -1,6 +1,9 @@
 package internal
 
-import "waguri-centralized-control/packages/go-utils/config"
+import (
+	"fmt"
+	"waguri-centralized-control/packages/go-utils/config"
+)
 
 type ProxyConfig struct {
 	config.Config `yaml:",inline"`
@@ -9,16 +12,50 @@ type ProxyConfig struct {
 }
 
 type RoutesConfig struct {
-	Host        string `yaml:"host"`
-	Target      string `yaml:"target"`
-	Name        string `yaml:"name"`
-	Description string `yaml:"description"`
-	Icon        string `yaml:"icon"`
-	Category    string `yaml:"category"`
+	Host        string `yaml:"host" validate:"required"`
+	Target      string `yaml:"target" validate:"required"`
+	Name        string `yaml:"name" validate:"required"`
+	Description string `yaml:"description" validate:"required"`
+	Icon        string `yaml:"icon" validate:"required"`
+	Category    string `yaml:"category" validate:"required"`
 }
 
 func LoadProxyConfig(path string) (*ProxyConfig, error) {
 	cfg := &ProxyConfig{}
 	err := config.Load(path, cfg)
-	return cfg, err
+	if err != nil {
+		return nil, err
+	}
+
+	// Validate that all routes have required fields
+	if err := validateProxyConfig(cfg); err != nil {
+		return nil, fmt.Errorf("configuration validation failed: %w", err)
+	}
+
+	return cfg, nil
+}
+
+// validateProxyConfig ensures all routes have required fields
+func validateProxyConfig(cfg *ProxyConfig) error {
+	for i, route := range cfg.Routes {
+		if route.Host == "" {
+			return fmt.Errorf("route %d: host is required", i)
+		}
+		if route.Target == "" {
+			return fmt.Errorf("route %d (%s): target is required", i, route.Host)
+		}
+		if route.Name == "" {
+			return fmt.Errorf("route %d (%s): name is required", i, route.Host)
+		}
+		if route.Description == "" {
+			return fmt.Errorf("route %d (%s): description is required", i, route.Host)
+		}
+		if route.Icon == "" {
+			return fmt.Errorf("route %d (%s): icon is required", i, route.Host)
+		}
+		if route.Category == "" {
+			return fmt.Errorf("route %d (%s): category is required", i, route.Host)
+		}
+	}
+	return nil
 }
