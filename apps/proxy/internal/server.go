@@ -8,27 +8,37 @@ import (
 )
 
 type Server struct {
-	cfg      *ProxyConfig
-	logger   *telemetry.Logger
-	proxyMap map[string]*httputil.ReverseProxy
+	cfg         *ProxyConfig
+	logger      *telemetry.Logger
+	proxyMap    map[string]*httputil.ReverseProxy
+	redirectMap map[string]string
 }
 
 func NewServer(cfg *ProxyConfig, logger *telemetry.Logger) *Server {
 	s := &Server{
-		cfg:      cfg,
-		logger:   logger,
-		proxyMap: make(map[string]*httputil.ReverseProxy),
+		cfg:         cfg,
+		logger:      logger,
+		proxyMap:    make(map[string]*httputil.ReverseProxy),
+		redirectMap: make(map[string]string),
 	}
 
 	for _, route := range cfg.Routes {
-		targetURL, err := url.Parse(route.Target)
-		if err != nil {
-			logger.Error("Skipping invalid target URL for host", route.Host, ":", err)
-			continue
+		if route.IsRedirect() {
+			// Handle redirect routes
+			redirectURL := route.GetRedirectURL()
+			s.redirectMap[route.Host] = redirectURL
+			logger.Info("Registered redirect route:", route.Host, "->", redirectURL)
+		} else {
+			// Handle proxy routes
+			targetURL, err := url.Parse(route.Target)
+			if err != nil {
+				logger.Error("Skipping invalid target URL for host", route.Host, ":", err)
+				continue
+			}
+			proxy := httputil.NewSingleHostReverseProxy(targetURL)
+			s.proxyMap[route.Host] = proxy
+			logger.Info("Registered proxy route:", route.Host, "->", targetURL.String())
 		}
-		proxy := httputil.NewSingleHostReverseProxy(targetURL)
-		s.proxyMap[route.Host] = proxy
-		logger.Info("Registered route:", route.Host, "->", targetURL.String())
 	}
 
 	return s

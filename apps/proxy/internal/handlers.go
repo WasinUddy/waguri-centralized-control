@@ -201,6 +201,15 @@ func (s *Server) handleRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Check for redirect routes first
+	if redirectURL, ok := s.redirectMap[r.Host]; ok {
+		s.handleRedirect(w, r, redirectURL)
+		duration := time.Since(startTime)
+		s.logger.Info(fmt.Sprintf("Redirect completed - duration_ms=%d host=%s path=%s",
+			duration.Milliseconds(), r.Host, r.URL.Path))
+		return
+	}
+
 	// Check for proxy routes
 	proxy, ok := s.proxyMap[r.Host]
 	if !ok {
@@ -242,6 +251,21 @@ func (s *Server) handleRequest(w http.ResponseWriter, r *http.Request) {
 	duration := time.Since(startTime)
 	s.logger.Info(fmt.Sprintf("HTTP proxy request completed - method=%s source_host=%s target_url=%s path=%s status_code=%d duration_ms=%d remote_addr=%s",
 		r.Method, r.Host, targetURL, r.URL.Path, wrappedWriter.statusCode, duration.Milliseconds(), r.RemoteAddr))
+}
+
+// handleRedirect handles HTTP redirects
+func (s *Server) handleRedirect(w http.ResponseWriter, r *http.Request, redirectURL string) {
+	// Construct the full redirect URL including path and query parameters
+	fullRedirectURL := redirectURL + r.URL.Path
+	if r.URL.RawQuery != "" {
+		fullRedirectURL += "?" + r.URL.RawQuery
+	}
+
+	s.logger.Info(fmt.Sprintf("Redirecting request - source_host=%s source_path=%s redirect_url=%s remote_addr=%s method=%s",
+		r.Host, r.URL.Path, fullRedirectURL, r.RemoteAddr, r.Method))
+
+	// Send a 302 (Found) redirect
+	http.Redirect(w, r, fullRedirectURL, http.StatusFound)
 }
 
 // responseWriter wraps http.ResponseWriter to capture status code

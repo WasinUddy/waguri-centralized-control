@@ -2,6 +2,7 @@ package internal
 
 import (
 	"fmt"
+	"strings"
 	"waguri-centralized-control/packages/go-utils/config"
 )
 
@@ -18,6 +19,22 @@ type RoutesConfig struct {
 	Description string `yaml:"description" validate:"required"`
 	Icon        string `yaml:"icon" validate:"required"`
 	Category    string `yaml:"category" validate:"required"`
+}
+
+// IsRedirect checks if this route should trigger a redirect instead of proxy
+func (r *RoutesConfig) IsRedirect() bool {
+	return strings.HasPrefix(r.Target, "rhttp://") || strings.HasPrefix(r.Target, "rhttps://")
+}
+
+// GetRedirectURL returns the actual redirect URL by removing the 'r' prefix
+func (r *RoutesConfig) GetRedirectURL() string {
+	if strings.HasPrefix(r.Target, "rhttp://") {
+		return "http://" + r.Target[8:] // Remove "rhttp://"
+	}
+	if strings.HasPrefix(r.Target, "rhttps://") {
+		return "https://" + r.Target[9:] // Remove "rhttps://"
+	}
+	return r.Target
 }
 
 func LoadProxyConfig(path string) (*ProxyConfig, error) {
