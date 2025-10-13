@@ -68,9 +68,6 @@ func isWebSocketRequest(r *http.Request) bool {
 
 // handleWebSocketProxy handles WebSocket connection proxying
 func (s *Server) handleWebSocketProxy(w http.ResponseWriter, r *http.Request, targetURL string) {
-	s.logger.Info(fmt.Sprintf("Handling WebSocket proxy - source_host=%s target_url=%s path=%s remote_addr=%s",
-		r.Host, targetURL, r.URL.Path, r.RemoteAddr))
-
 	// Parse target URL
 	target, err := url.Parse(targetURL)
 	if err != nil {
@@ -101,7 +98,7 @@ func (s *Server) handleWebSocketProxy(w http.ResponseWriter, r *http.Request, ta
 		s.logger.Error("Failed to upgrade client connection to WebSocket:", err)
 		return
 	}
-	defer clientConn.Close()
+	defer func() { _ = clientConn.Close() }()
 
 	// Forward headers to the target
 	headers := http.Header{}
@@ -121,12 +118,10 @@ func (s *Server) handleWebSocketProxy(w http.ResponseWriter, r *http.Request, ta
 	targetConn, _, err := websocket.DefaultDialer.Dial(wsURL, headers)
 	if err != nil {
 		s.logger.Error(fmt.Sprintf("Failed to connect to target WebSocket - url=%s error=%v", wsURL, err))
-		clientConn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseInternalServerErr, "Failed to connect to target"))
+		_ = clientConn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseInternalServerErr, "Failed to connect to target"))
 		return
 	}
-	defer targetConn.Close()
-
-	s.logger.Info(fmt.Sprintf("WebSocket proxy connection established - client=%s target=%s", r.RemoteAddr, wsURL))
+	defer func() { _ = targetConn.Close() }()
 
 	// Start bidirectional message forwarding
 	errChan := make(chan error, 2)
@@ -136,21 +131,15 @@ func (s *Server) handleWebSocketProxy(w http.ResponseWriter, r *http.Request, ta
 		for {
 			messageType, message, err := clientConn.ReadMessage()
 			if err != nil {
-				if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-					s.logger.Error("Client WebSocket read error:", err)
-				}
 				errChan <- err
 				return
 			}
 
 			err = targetConn.WriteMessage(messageType, message)
 			if err != nil {
-				s.logger.Error("Target WebSocket write error:", err)
 				errChan <- err
 				return
 			}
-
-			s.logger.Info(fmt.Sprintf("WebSocket message forwarded client->target - type=%d size=%d", messageType, len(message)))
 		}
 	}()
 
@@ -159,27 +148,20 @@ func (s *Server) handleWebSocketProxy(w http.ResponseWriter, r *http.Request, ta
 		for {
 			messageType, message, err := targetConn.ReadMessage()
 			if err != nil {
-				if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-					s.logger.Error("Target WebSocket read error:", err)
-				}
 				errChan <- err
 				return
 			}
 
 			err = clientConn.WriteMessage(messageType, message)
 			if err != nil {
-				s.logger.Error("Client WebSocket write error:", err)
 				errChan <- err
 				return
 			}
-
-			s.logger.Info(fmt.Sprintf("WebSocket message forwarded target->client - type=%d size=%d", messageType, len(message)))
 		}
 	}()
 
 	// Wait for an error or connection close
-	err = <-errChan
-	s.logger.Info(fmt.Sprintf("WebSocket proxy connection closed - client=%s target=%s error=%v", r.RemoteAddr, wsURL, err))
+	<-errChan
 }
 
 // handleRequest is the main request handler that routes requests to appropriate handlers
