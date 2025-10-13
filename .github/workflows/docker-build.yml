@@ -42,3 +42,9 @@ jobs:
         cache-from: type=gha
         cache-to: type=gha,mode=max
         platforms: linux/amd64
+
+    - name: Restart Production
+      run: |
+        curl -X POST https://${{ secrets.N8N_HOST }}/webhook/waguri-centralized-contol/build \
+        -H "Content-Type: application/json" \
+        -H "Authorization: Bearer ${{ secrets.N8N_TOKEN }}" \
