@@ -222,13 +222,28 @@ func (s *Server) handleRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Find the target URL for this host
-	var targetURL string
+	// Find the route configuration for this host
+	var routeConfig *RoutesConfig
 	for _, route := range s.cfg.Routes {
 		if route.Host == r.Host {
-			targetURL = route.Target
+			routeConfig = &route
 			break
 		}
+	}
+
+	// Safety check: if route is actually a redirect, handle it as redirect
+	if routeConfig != nil && routeConfig.IsRedirect() {
+		s.logger.Error(fmt.Sprintf("Route marked as proxy but is redirect - host=%s target=%s", r.Host, routeConfig.Target))
+		s.handleRedirect(w, r, routeConfig.GetRedirectURL())
+		duration := time.Since(startTime)
+		s.logger.Info(fmt.Sprintf("Redirect completed (fallback) - duration_ms=%d host=%s path=%s",
+			duration.Milliseconds(), r.Host, r.URL.Path))
+		return
+	}
+
+	targetURL := ""
+	if routeConfig != nil {
+		targetURL = routeConfig.Target
 	}
 
 	// Check if this is a WebSocket request
