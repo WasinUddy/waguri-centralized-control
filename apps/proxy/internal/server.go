@@ -47,7 +47,16 @@ func NewServer(cfg *ProxyConfig, logger *telemetry.Logger) *Server {
 func (s *Server) Start() error {
 	mux := http.NewServeMux()
 
-	// Handler for all requests
+	// Serve static assets from ./static at the /static/ path
+	staticDir := "./static"
+	fileServer := http.FileServer(http.Dir(staticDir))
+	mux.Handle("/static/", http.StripPrefix("/static/", fileServer))
+
+	mux.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, staticDir+"/waguri.ico")
+	})
+
+	// Handler for all other requests
 	mux.HandleFunc("/", s.handleRequest)
 
 	server := &http.Server{
