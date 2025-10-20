@@ -29,9 +29,7 @@ COPY --from=builder /app/apps/proxy/proxy .
 
 # Copy static files
 COPY --from=builder /app/apps/proxy/menu.html .
-
-# Copy config file if it exists
-COPY --from=builder /app/configs/proxy.yaml ./configs/proxy.yaml
+COPY --from=builder /app/apps/proxy/static ./static
 
 EXPOSE 80
 
